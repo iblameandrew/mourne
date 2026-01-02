@@ -1,117 +1,256 @@
-import json
+"""
+Main Orchestrator for Mourne.
+Coordinates the full media generation pipeline:
+Master Planner → Sub-Agents → Final Director
+"""
+import os
 import asyncio
-from typing import Dict, Any, List, Optional
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
-from langchain_core.runnables import (
-    RunnablePassthrough, 
-    RunnableParallel, 
-    RunnableLambda, 
-    RunnableBranch,
-    ConfigurableField
+from typing import Optional, Dict, Any, Callable
+from .models import (
+    VideoProject,
+    MasterPlan,
+    MediaAsset,
+    GenerationStatus
 )
-from langchain_core.documents.base import Blob
-from langchain_community.document_loaders.parsers.audio import OpenAIWhisperParser
+from .master_planner import MasterPlanner
+from .sub_agents import MediaGenerationCoordinator
+from .llm_backend import OpenRouterLLM
+
 
 class Orchestrator:
     """
-    Async Orchestrator for the Web Backend.
+    Main orchestrator for the Mourne media generation pipeline.
+    
+    Flow:
+    1. Analyze audio (transcription/beat detection)
+    2. Run Master Planner to create scene breakdown
+    3. Dispatch sub-agents to generate media for each scene
+    4. Collect all assets with stitching cards
+    5. Pass to Director for final script generation
     """
-    def __init__(self, model_name="gpt-4o"):
-        self.model_name = model_name
-        self.primary_llm = ChatOpenAI(model=model_name).configurable_fields(
-            temperature=ConfigurableField(id="temp")
-        )
-        self.fallback_llm = ChatOpenAI(model="gpt-3.5-turbo")
-        self.llm = self.primary_llm.with_fallbacks([self.fallback_llm])
+    
+    def __init__(
+        self,
+        output_dir: str = "generated_media",
+        planner: Optional[MasterPlanner] = None,
+        coordinator: Optional[MediaGenerationCoordinator] = None
+    ):
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
         
-        # Setup Chain
-        self._setup_chain()
-
-    async def transcribe_audio(self, audio_path: str) -> str:
+        self.planner = planner or MasterPlanner()
+        self.coordinator = coordinator or MediaGenerationCoordinator(output_dir)
+        
+        # Track active projects
+        self._projects: Dict[str, VideoProject] = {}
+        self._generation_status: Dict[str, GenerationStatus] = {}
+    
+    async def analyze_audio(self, audio_path: str) -> str:
         """
-        Transcribes audio using OpenAI Whisper (via LangChain Parser).
+        Analyze audio file for lyrics/content.
+        Uses Whisper via a cloud service or returns placeholder.
+        
+        Args:
+            audio_path: Path to the audio file
+        
+        Returns:
+            Transcription or audio analysis text
         """
-        # The audio file path is wrapped in a Blob object
-        audio_blob = Blob(path=audio_path)
-
-        parser = OpenAIWhisperParser()
-        # lazy_parse returns an iterator, we iterate to get documents
-        documents = list(parser.lazy_parse(blob=audio_blob)) 
+        # For now, use a simple LLM-based description if no transcription service
+        # In production, integrate with Whisper API or similar
         
-        # Combine content from all documents (usually just one for a file)
-        transcription = "\n".join([doc.page_content for doc in documents])
-        print(f"Transcription Result: {transcription[:100]}...")
-        return transcription
+        if not os.path.exists(audio_path):
+            return "No audio file provided - instrumental track assumed"
         
-    def _setup_chain(self):
-        # 2. --- THE SUB-CHAINS ---
-        # Researcher Node
-        research_prompt = ChatPromptTemplate.from_template("Analyze this video script/concept: {topic}. Break it down into visual motifs and mood. Summary:")
-        researcher = research_prompt | self.llm | StrOutputParser()
-
-        # Critic Node
-        critic_prompt = ChatPromptTemplate.from_template(
-            "Rate this analysis as 'PASS' or 'FAIL'. Report: {report}. Logic: Provide JSON with 'rating' and 'reason'."
+        # TODO: Integrate with cloud transcription service
+        # For now, return a placeholder that can be enhanced
+        return f"Audio track from: {os.path.basename(audio_path)}"
+    
+    async def create_project(
+        self,
+        project_id: str,
+        name: str,
+        script: str,
+        song_path: str
+    ) -> VideoProject:
+        """
+        Initialize a new video project.
+        
+        Args:
+            project_id: Unique project identifier
+            name: Human-readable project name
+            script: Creative script/concept
+            song_path: Path to audio file
+        
+        Returns:
+            Created VideoProject
+        """
+        # Analyze the audio
+        audio_analysis = await self.analyze_audio(song_path)
+        
+        project = VideoProject(
+            id=project_id,
+            name=name,
+            script=script,
+            song_path=song_path,
+            audio_analysis=audio_analysis,
+            status="created"
         )
-        critic = critic_prompt | self.llm | JsonOutputParser()
-
-        # 3. --- THE RECURSIVE LOOP LOGIC ---
-        def self_correcting_loop(state: Dict[str, Any]) -> Dict[str, Any]:
-            """The 'Brain' of the loop that decides to recurse or exit."""
-            count = state.get('count', 1)
-            # In a real async flow, we might stream logs here via a callback handler
-            print(f"--- Iteration {count} ---")
+        
+        self._projects[project_id] = project
+        return project
+    
+    async def generate_plan(
+        self,
+        project_id: str,
+        duration: float
+    ) -> MasterPlan:
+        """
+        Generate a scene-by-scene plan for a project.
+        
+        Args:
+            project_id: The project to plan
+            duration: Total video duration in seconds
+        
+        Returns:
+            Generated MasterPlan
+        """
+        project = self._projects.get(project_id)
+        if not project:
+            raise ValueError(f"Project {project_id} not found")
+        
+        project.status = "planning"
+        
+        plan = await self.planner.create_plan(
+            script=project.script,
+            audio_analysis=project.audio_analysis or "",
+            duration=duration
+        )
+        
+        project.plan = plan
+        project.status = "planned"
+        
+        return plan
+    
+    async def refine_plan(
+        self,
+        project_id: str,
+        feedback: str
+    ) -> MasterPlan:
+        """
+        Refine an existing plan based on user feedback.
+        
+        Args:
+            project_id: The project to refine
+            feedback: User feedback
+        
+        Returns:
+            Refined MasterPlan
+        """
+        project = self._projects.get(project_id)
+        if not project or not project.plan:
+            raise ValueError(f"Project {project_id} not found or has no plan")
+        
+        refined_plan = await self.planner.refine_plan(project.plan, feedback)
+        project.plan = refined_plan
+        
+        return refined_plan
+    
+    async def generate_media(
+        self,
+        project_id: str,
+        on_progress: Optional[Callable[[int, int, MediaAsset], None]] = None
+    ) -> list[MediaAsset]:
+        """
+        Generate all media assets for a project.
+        
+        Args:
+            project_id: The project to generate media for
+            on_progress: Optional callback for progress updates
+        
+        Returns:
+            List of generated MediaAssets
+        """
+        project = self._projects.get(project_id)
+        if not project or not project.plan:
+            raise ValueError(f"Project {project_id} not found or has no plan")
+        
+        project.status = "generating"
+        
+        # Initialize generation status
+        self._generation_status[project_id] = GenerationStatus(
+            project_id=project_id,
+            total_scenes=len(project.plan.scenes),
+            completed_scenes=0,
+            status="in_progress"
+        )
+        
+        def progress_wrapper(scene_num: int, total: int, asset: MediaAsset):
+            status = self._generation_status[project_id]
+            status.completed_scenes = scene_num
+            status.current_scene = scene_num
+            status.assets.append(asset)
             
-            # Run the critic on the current report
-            critique = critic.invoke({"report": state["report"]})
-            
-            # EXIT CONDITION: Pass or Max Retries
-            if critique["rating"] == "PASS" or count >= state["max_retries"]:
-                return {**state, "final_status": "Complete", "critique": critique}
-            
-            # RECURSE: Rewrite and call self again
-            rewrite_prompt = ChatPromptTemplate.from_template(
-                "Improve this report based on: {reason}. Original: {report}"
+            if on_progress:
+                on_progress(scene_num, total, asset)
+        
+        try:
+            assets = await self.coordinator.generate_all(
+                scenes=project.plan.scenes,
+                on_progress=progress_wrapper
             )
-            new_report = (rewrite_prompt | self.llm | StrOutputParser()).invoke({
-                "reason": critique["reason"], 
-                "report": state["report"]
-            })
             
-            # Logic for the next 'Turn'
-            next_state = {
-                **state,
-                "report": new_report,
-                "count": count + 1
-            }
-            return self_correcting_loop(next_state)
-
-        # 4. --- THE MEGA CHAIN ASSEMBLY ---
-        self.chain = (
-            # STEP A: Initialize State in Parallel
-            RunnableParallel({
-                "topic": RunnablePassthrough(),
-                "report": researcher, # Kick off the first draft
-                "count": lambda x: 1,
-                "max_retries": lambda x: 3
-            })
-            # STEP B: Enter the Recursive Lambda
-            | RunnableLambda(self_correcting_loop)
-            # STEP C: Final Formatting Branch
-            | RunnableBranch(
-                (lambda x: x["count"] > 2, ChatPromptTemplate.from_template("Summarize this (it took too long): {report}") | self.llm),
-                (lambda x: True, RunnableLambda(lambda x: x["report"]))
-            )
-            | StrOutputParser()
-        )
-
-    async def run_analysis(self, topic: str):
+            project.assets = assets
+            project.status = "ready"
+            
+            self._generation_status[project_id].status = "complete"
+            
+            return assets
+            
+        except Exception as e:
+            project.status = "failed"
+            self._generation_status[project_id].status = "failed"
+            self._generation_status[project_id].error = str(e)
+            raise
+    
+    def get_project(self, project_id: str) -> Optional[VideoProject]:
+        """Get a project by ID"""
+        return self._projects.get(project_id)
+    
+    def get_generation_status(self, project_id: str) -> Optional[GenerationStatus]:
+        """Get generation status for a project"""
+        return self._generation_status.get(project_id)
+    
+    async def run_full_pipeline(
+        self,
+        project_id: str,
+        name: str,
+        script: str,
+        song_path: str,
+        duration: float,
+        on_progress: Optional[Callable] = None
+    ) -> VideoProject:
         """
-        Runs the orchestration chain asynchronously.
+        Run the complete pipeline from script to generated assets.
+        
+        Args:
+            project_id: Unique project identifier
+            name: Project name
+            script: Creative script
+            song_path: Path to audio file
+            duration: Video duration in seconds
+            on_progress: Optional progress callback
+        
+        Returns:
+            Completed VideoProject with all assets
         """
-        config = {"configurable": {"temp": 0.7}}
-        # LangChain's invoke is synchronous, for async we use ainvoke
-        result = await self.chain.ainvoke(topic, config=config)
-        return result
+        # Create project
+        project = await self.create_project(project_id, name, script, song_path)
+        
+        # Generate plan
+        await self.generate_plan(project_id, duration)
+        
+        # Generate all media
+        await self.generate_media(project_id, on_progress)
+        
+        return self._projects[project_id]

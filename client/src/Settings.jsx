@@ -1,33 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X, Server, Cloud, Cpu, Mic, Image as ImageIcon, Video, Type, Key } from 'lucide-react';
+import { Save, X, Cloud, Cpu, Mic, Image as ImageIcon, Video, Type, Key } from 'lucide-react';
 
 const Settings = ({ isOpen, onClose }) => {
-    const [activeTab, setActiveTab] = useState('general');
     const [config, setConfig] = useState({
-        mode: 'cloud', // 'local' | 'cloud'
         cloud_provider: 'google', // 'google' | 'replicate'
         keys: {
             google_key: '',
-            replicate_key: ''
+            replicate_key: '',
+            openrouter_key: ''
         },
         routes: {
             text_model: 'gemini-1.5-pro',
             speech_model: 'gemini-2.5-flash-preview-tts',
             image_model: 'imagen-3',
             video_model: 'veo-2'
-        }
+        },
+        // Only relevant when replicate is chosen
+        openrouter_text_model: '' // Optional: e.g. 'anthropic/claude-3.5-sonnet'
     });
 
     // Load from localStorage
     useEffect(() => {
-        const saved = localStorage.getItem('mourne_config_v2');
+        const saved = localStorage.getItem('mourne_config_v3');
         if (saved) {
             setConfig(JSON.parse(saved));
         }
     }, []);
 
     const handleSave = () => {
-        localStorage.setItem('mourne_config_v2', JSON.stringify(config));
+        localStorage.setItem('mourne_config_v3', JSON.stringify(config));
         onClose();
     };
 
@@ -37,7 +38,7 @@ const Settings = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-[#121214] border border-amber-50/10 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 flex flex-col max-h-[90vh] relative">
 
-                {/* Atmospheric Gradients - Subtle */}
+                {/* Atmospheric Gradients */}
                 <div className="absolute top-0 left-0 w-64 h-64 bg-blue-600/5 blur-[80px] rounded-full pointer-events-none mix-blend-screen" />
                 <div className="absolute bottom-0 right-0 w-64 h-64 bg-red-600/5 blur-[80px] rounded-full pointer-events-none mix-blend-screen" />
 
@@ -49,7 +50,7 @@ const Settings = ({ isOpen, onClose }) => {
                         </div>
                         <div>
                             <h3 className="font-bold text-sm text-zinc-200 uppercase tracking-wider">System Architecture</h3>
-                            <p className="text-[10px] text-zinc-500 font-mono">Configure Neural Pathways</p>
+                            <p className="text-[10px] text-zinc-500 font-mono">Configure Cloud Providers</p>
                         </div>
                     </div>
                     <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors"><X size={20} /></button>
@@ -58,166 +59,110 @@ const Settings = ({ isOpen, onClose }) => {
                 {/* Scrollable Body */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 relative z-10">
 
-                    {/* 1. Infrastructure Mode */}
+                    {/* 1. Cloud Provider Selection */}
                     <section className="space-y-4">
                         <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <Server size={14} /> Infrastructure Mode
+                            <Cloud size={14} /> Cloud Provider
                         </h4>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => setConfig({ ...config, mode: 'local' })}
-                                className={`p-4 rounded-xl border flex items-center gap-4 transition-all ${config.mode === 'local'
-                                    ? 'bg-amber-50/5 border-amber-50/20 text-indigo-200 shadow-[0_0_15px_-5px_rgba(255,255,255,0.1)]'
-                                    : 'bg-surface/30 border-white/5 text-zinc-500 hover:bg-surface/50'
-                                    }`}
-                            >
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${config.mode === 'local' ? 'border-amber-100/50' : 'border-zinc-700'}`}>
-                                    {config.mode === 'local' && <div className="w-2 h-2 rounded-full bg-amber-100" />}
-                                </div>
-                                <div className="text-left">
-                                    <div className="font-bold text-sm">Local Execution</div>
-                                    <div className="text-[10px] opacity-70">Run models on localhost</div>
-                                </div>
-                            </button>
-
-                            <button
-                                onClick={() => setConfig({ ...config, mode: 'cloud' })}
-                                className={`p-4 rounded-xl border flex items-center gap-4 transition-all ${config.mode === 'cloud'
-                                    ? 'bg-amber-50/5 border-amber-50/20 text-indigo-200 shadow-[0_0_15px_-5px_rgba(255,255,255,0.1)]'
-                                    : 'bg-surface/30 border-white/5 text-zinc-500 hover:bg-surface/50'
-                                    }`}
-                            >
-                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${config.mode === 'cloud' ? 'border-amber-100/50' : 'border-zinc-700'}`}>
-                                    {config.mode === 'cloud' && <div className="w-2 h-2 rounded-full bg-amber-100" />}
-                                </div>
-                                <div className="text-left">
-                                    <div className="font-bold text-sm">Cloud Inference</div>
-                                    <div className="text-[10px] opacity-70">Use external providers</div>
-                                </div>
-                            </button>
+                        <div className="flex gap-4">
+                            {['google', 'replicate'].map(provider => (
+                                <button
+                                    key={provider}
+                                    onClick={() => setConfig({ ...config, cloud_provider: provider })}
+                                    className={`px-5 py-3 rounded-xl text-sm font-bold uppercase tracking-wider border transition-all ${config.cloud_provider === provider
+                                        ? 'bg-amber-50/10 text-amber-50 border-amber-50/20 shadow-[0_0_20px_-5px_rgba(255,255,255,0.1)]'
+                                        : 'bg-transparent text-zinc-500 border-white/5 hover:border-white/10 hover:bg-white/5'
+                                        }`}
+                                >
+                                    {provider}
+                                </button>
+                            ))}
                         </div>
                     </section>
 
-                    {/* 2. Provider Configuration (Dynamic) */}
-                    <section className="space-y-4 animate-in slide-in-from-top-4 fade-in duration-300">
+                    {/* 2. API Keys */}
+                    <section className="space-y-4">
                         <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            {config.mode === 'cloud' ? <Cloud size={14} /> : <Server size={14} />}
-                            {config.mode === 'cloud' ? 'Cloud Provider' : 'Local Inference Engine'}
+                            <Key size={14} /> API Keys
                         </h4>
 
-                        {config.mode === 'cloud' ? (
-                            <>
-                                <div className="flex gap-4">
-                                    {['google', 'replicate'].map(provider => (
-                                        <button
-                                            key={provider}
-                                            onClick={() => setConfig({ ...config, cloud_provider: provider })}
-                                            className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border transition-all ${config.cloud_provider === provider
-                                                ? 'bg-amber-50/10 text-amber-50 border-amber-50/20'
-                                                : 'bg-transparent text-zinc-500 border-white/5 hover:border-white/10'
-                                                }`}
-                                        >
-                                            {provider}
-                                        </button>
-                                    ))}
-                                </div>
+                        {/* Google Key */}
+                        {config.cloud_provider === 'google' && (
+                            <div className="bg-surface/20 p-4 rounded-xl border border-amber-50/5 space-y-2">
+                                <label className="text-xs text-zinc-400 flex items-center gap-2">
+                                    <Key size={12} /> Google AI / Gemini API Key
+                                </label>
+                                <input
+                                    type="password"
+                                    className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-amber-50/30 font-mono tracking-tight transition-colors"
+                                    placeholder="AIza..."
+                                    value={config.keys.google_key}
+                                    onChange={(e) => setConfig({
+                                        ...config,
+                                        keys: { ...config.keys, google_key: e.target.value }
+                                    })}
+                                />
+                            </div>
+                        )}
 
-                                {/* Dynamic API Key Input */}
+                        {/* Replicate Key + Optional OpenRouter */}
+                        {config.cloud_provider === 'replicate' && (
+                            <div className="space-y-4">
                                 <div className="bg-surface/20 p-4 rounded-xl border border-amber-50/5 space-y-2">
                                     <label className="text-xs text-zinc-400 flex items-center gap-2">
-                                        <Key size={12} />
-                                        {config.cloud_provider === 'google' ? 'Google AI Studio / Vertex Key' : 'Replicate API Token'}
+                                        <Key size={12} /> Replicate API Token
                                     </label>
                                     <input
                                         type="password"
                                         className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-amber-50/30 font-mono tracking-tight transition-colors"
-                                        placeholder={config.cloud_provider === 'google' ? 'AIza...' : 'r8_...'}
-                                        value={config.cloud_provider === 'google' ? config.keys.google_key : config.keys.replicate_key}
-                                        onChange={(e) => {
-                                            const keyType = config.cloud_provider === 'google' ? 'google_key' : 'replicate_key';
-                                            setConfig({
-                                                ...config,
-                                                keys: { ...config.keys, [keyType]: e.target.value }
-                                            });
-                                        }}
+                                        placeholder="r8_..."
+                                        value={config.keys.replicate_key}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            keys: { ...config.keys, replicate_key: e.target.value }
+                                        })}
                                     />
                                 </div>
-                            </>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="p-3 bg-blue-900/5 border border-blue-500/10 rounded-lg">
-                                    <p className="text-[10px] text-blue-300 leading-relaxed font-mono">
-                                        <strong>LOCAL MODE ACTIVE:</strong> Ensure backend services (Ollama, SD-CPP-Server) are running.
+
+                                {/* Optional: OpenRouter for Text */}
+                                <div className="bg-surface/20 p-4 rounded-xl border border-primary/10 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs text-zinc-400 flex items-center gap-2">
+                                            <Type size={12} /> OpenRouter Text Model <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 rounded">OPTIONAL</span>
+                                        </label>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-600 leading-relaxed">
+                                        Use an OpenRouter model for text/reasoning instead of Replicate.
                                     </p>
-                                </div>
-
-                                {/* Local Model Paths */}
-                                <div className="grid grid-cols-1 gap-4">
-
-                                    {/* Text - Ollama */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-zinc-400 flex items-center gap-2">
-                                            <Type size={12} /> Text / Reasoning <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 rounded uppercase">Ollama</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-surface/30 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-amber-50/30 font-mono placeholder-zinc-600 transition-colors"
-                                            placeholder="llama3"
-                                            value={config.routes.text_model}
-                                            onChange={(e) => setConfig({ ...config, routes: { ...config.routes, text_model: e.target.value } })}
-                                        />
-                                    </div>
-
-                                    {/* Speech - HF SafeTensors */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-zinc-400 flex items-center gap-2">
-                                            <Mic size={12} /> Speech Synthesis <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 rounded uppercase">HF SafeTensors</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50 focus:text-violet-400 font-mono placeholder-zinc-600"
-                                            placeholder="microsoft/speecht5_tts"
-                                            value={config.routes.speech_model}
-                                            onChange={(e) => setConfig({ ...config, routes: { ...config.routes, speech_model: e.target.value } })}
-                                        />
-                                    </div>
-
-                                    {/* Image - SD CPP GGUF */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-zinc-400 flex items-center gap-2">
-                                            <ImageIcon size={12} /> Image Generation <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 rounded uppercase">SD CPP GGUF</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-pink-500/50 focus:text-pink-400 font-mono placeholder-zinc-600"
-                                            placeholder="/models/sd-v1-5-pruned-f16.gguf"
-                                            value={config.routes.image_model}
-                                            onChange={(e) => setConfig({ ...config, routes: { ...config.routes, image_model: e.target.value } })}
-                                        />
-                                    </div>
-
-                                    {/* Video - SD CPP GGUF */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs text-zinc-400 flex items-center gap-2">
-                                            <Video size={12} /> Video Synthesis <span className="text-[10px] text-zinc-600 bg-white/5 px-1.5 rounded uppercase">SD CPP GGUF</span>
-                                        </label>
-                                        <input
-                                            type="text"
-                                            className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500/50 focus:text-emerald-400 font-mono placeholder-zinc-600"
-                                            placeholder="/models/svd-xt-1-1.gguf"
-                                            value={config.routes.video_model}
-                                            onChange={(e) => setConfig({ ...config, routes: { ...config.routes, video_model: e.target.value } })}
-                                        />
-                                    </div>
+                                    <input
+                                        type="password"
+                                        className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-primary/30 font-mono tracking-tight transition-colors"
+                                        placeholder="OpenRouter API Key (sk-or-...)"
+                                        value={config.keys.openrouter_key}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            keys: { ...config.keys, openrouter_key: e.target.value }
+                                        })}
+                                    />
+                                    <input
+                                        type="text"
+                                        className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-primary/30 font-mono tracking-tight transition-colors"
+                                        placeholder="Model (e.g. anthropic/claude-3.5-sonnet)"
+                                        value={config.openrouter_text_model}
+                                        onChange={(e) => setConfig({
+                                            ...config,
+                                            openrouter_text_model: e.target.value
+                                        })}
+                                    />
                                 </div>
                             </div>
                         )}
                     </section>
 
-                    {/* 3. Model Routing Matrix */}
+                    {/* 3. Model Routing */}
                     <section className="space-y-4">
                         <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                            <Cpu size={14} /> Model Routing Matrix
+                            <Cpu size={14} /> Model Routing
                         </h4>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,8 +173,8 @@ const Settings = ({ isOpen, onClose }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-cyan-500/50 focus:text-cyan-400 font-mono"
-                                    placeholder="e.g. gemini-1.5-pro"
+                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-cyan-500/50 font-mono"
+                                    placeholder={config.cloud_provider === 'google' ? 'gemini-1.5-pro' : 'meta/llama-2-70b-chat'}
                                     value={config.routes.text_model}
                                     onChange={(e) => setConfig({ ...config, routes: { ...config.routes, text_model: e.target.value } })}
                                 />
@@ -242,8 +187,8 @@ const Settings = ({ isOpen, onClose }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50 focus:text-violet-400 font-mono"
-                                    placeholder="e.g. gemini-2.5-flash-preview-tts"
+                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-violet-500/50 font-mono"
+                                    placeholder={config.cloud_provider === 'google' ? 'gemini-2.5-flash-preview-tts' : 'cjwbw/bark'}
                                     value={config.routes.speech_model}
                                     onChange={(e) => setConfig({ ...config, routes: { ...config.routes, speech_model: e.target.value } })}
                                 />
@@ -256,8 +201,8 @@ const Settings = ({ isOpen, onClose }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-pink-500/50 focus:text-pink-400 font-mono"
-                                    placeholder="e.g. imagen-3"
+                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-pink-500/50 font-mono"
+                                    placeholder={config.cloud_provider === 'google' ? 'imagen-3' : 'stability-ai/sdxl'}
                                     value={config.routes.image_model}
                                     onChange={(e) => setConfig({ ...config, routes: { ...config.routes, image_model: e.target.value } })}
                                 />
@@ -270,8 +215,8 @@ const Settings = ({ isOpen, onClose }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500/50 focus:text-emerald-400 font-mono"
-                                    placeholder="e.g. veo-2"
+                                    className="w-full bg-surface/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-emerald-500/50 font-mono"
+                                    placeholder={config.cloud_provider === 'google' ? 'veo-2' : 'stability-ai/stable-video-diffusion'}
                                     value={config.routes.video_model}
                                     onChange={(e) => setConfig({ ...config, routes: { ...config.routes, video_model: e.target.value } })}
                                 />
@@ -284,7 +229,7 @@ const Settings = ({ isOpen, onClose }) => {
                 <div className="p-4 border-t border-amber-50/5 bg-surface/20 flex justify-end gap-3 shrink-0 relative z-10">
                     <button onClick={onClose} className="px-6 py-2 rounded-lg hover:bg-white/5 text-zinc-400 text-sm font-medium transition-colors">Cancel</button>
                     <button onClick={handleSave} className="px-6 py-2 rounded-lg bg-white/5 border border-amber-50/20 hover:bg-amber-50/10 text-amber-50 text-sm font-medium flex items-center gap-2 shadow-[0_0_15px_-5px_rgba(251,191,36,0.1)] transition-all hover:scale-[1.02]">
-                        <Save size={16} /> Save System Config
+                        <Save size={16} /> Save Config
                     </button>
                 </div>
             </div>

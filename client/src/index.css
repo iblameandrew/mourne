@@ -37,3 +37,142 @@ body {
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* ============================================
+   LIQUID SHIMMER ANIMATION
+   Creates a flowing gradient effect like liquid
+   moving within the frame
+   ============================================ */
+.liquid-shimmer {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(-45deg,
+            #1a1a2e 0%,
+            #2d1f4e 20%,
+            #1f3a5f 40%,
+            #4a2c6a 60%,
+            #2d1f4e 80%,
+            #1a1a2e 100%);
+    background-size: 400% 400%;
+    animation: liquid-flow 4s ease-in-out infinite;
+}
+
+/* Overlay for depth effect */
+.liquid-shimmer::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%,
+            rgba(124, 77, 255, 0.3) 0%,
+            transparent 50%);
+    animation: liquid-glow 3s ease-in-out infinite alternate;
+}
+
+.liquid-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 80%,
+            rgba(96, 165, 250, 0.25) 0%,
+            transparent 50%);
+    animation: liquid-glow 3s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes liquid-flow {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes liquid-glow {
+    0% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* ============================================
+   SHIMMER GRADIENT (for progress bars)
+   ============================================ */
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.animate-shimmer {
+    animation: shimmer 2s linear infinite;
+}
+
+/* ============================================
+   FADE IN ANIMATION
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* ============================================
+   SLOW SPIN (for generating icon)
+   ============================================ */
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin-slow {
+    animation: spin-slow 3s linear infinite;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

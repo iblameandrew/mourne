@@ -20,4 +20,6 @@ dist/
 # Local/User specific
 .gemini/
 uploads/
+generated_media/
+scripts/
 legacy_desktop/

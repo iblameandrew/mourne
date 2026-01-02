@@ -1,0 +1,148 @@
+"""
+Core data models for the Mourne media generation pipeline.
+"""
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from enum import Enum
+
+
+class MediaType(str, Enum):
+    """Type of media asset"""
+    IMAGE = "image"
+    VIDEO = "video"
+
+
+class TransitionType(str, Enum):
+    """Video transition types"""
+    FADE = "fade"
+    CROSSFADE = "crossfade"
+    CUT = "cut"
+    ZOOM = "zoom"
+    SLIDE = "slide"
+
+
+class KenBurnsDirection(str, Enum):
+    """Ken Burns effect directions for static images"""
+    ZOOM_IN = "zoom_in"
+    ZOOM_OUT = "zoom_out"
+    PAN_LEFT = "pan_left"
+    PAN_RIGHT = "pan_right"
+    PAN_UP = "pan_up"
+    PAN_DOWN = "pan_down"
+
+
+class StitchingCard(BaseModel):
+    """
+    Metadata attached to each generated media asset.
+    Contains all information needed for the final video assembly.
+    """
+    id: str
+    scene_number: int
+    time_start: float
+    time_end: float
+    visual_prompt: str = Field(description="The exact prompt used to generate this media")
+    audio_cue: str = Field(description="Lyrics/audio description at this timestamp")
+    mood_description: str = Field(description="Emotional tone of this scene")
+    transition_in: TransitionType = TransitionType.CROSSFADE
+    transition_out: TransitionType = TransitionType.CROSSFADE
+    transition_duration: float = 0.5
+    ken_burns_direction: Optional[KenBurnsDirection] = None
+    color_grade_hint: Optional[str] = None  # e.g., "warm", "cold", "desaturated"
+    
+    @property
+    def duration(self) -> float:
+        return self.time_end - self.time_start
+
+
+class MediaAsset(BaseModel):
+    """A generated media file with its stitching card"""
+    asset_path: str = Field(description="Local path to the generated file")
+    media_type: MediaType
+    stitching_card: StitchingCard
+    generation_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="API response info, model used, generation params"
+    )
+
+
+class SceneStep(BaseModel):
+    """A single granular step from the Master Planner"""
+    scene_number: int
+    description: str = Field(description="Brief narrative description of the scene")
+    time_start: float
+    time_end: float
+    suggested_media_type: MediaType
+    visual_prompt_draft: str = Field(description="Initial visual prompt for refinement")
+    audio_context: str = Field(description="What's happening in the audio at this moment")
+    mood: str = Field(description="Emotional tone (e.g., melancholic, energetic, ethereal)")
+    suggested_transition: Optional[TransitionType] = TransitionType.CROSSFADE
+    
+    @property
+    def duration(self) -> float:
+        return self.time_end - self.time_start
+
+
+class MasterPlan(BaseModel):
+    """Complete plan output from the Master Planner"""
+    project_name: str
+    total_duration: float
+    scenes: List[SceneStep]
+    
+    def validate_coverage(self) -> bool:
+        """Ensure scenes cover the entire duration without gaps"""
+        if not self.scenes:
+            return False
+        
+        sorted_scenes = sorted(self.scenes, key=lambda s: s.time_start)
+        
+        # Check first scene starts at 0
+        if sorted_scenes[0].time_start > 0.5:  # Allow 0.5s tolerance
+            return False
+        
+        # Check for gaps between scenes
+        for i in range(len(sorted_scenes) - 1):
+            gap = sorted_scenes[i + 1].time_start - sorted_scenes[i].time_end
+            if gap > 0.5:  # More than 0.5s gap
+                return False
+        
+        # Check last scene ends at total duration
+        if abs(sorted_scenes[-1].time_end - self.total_duration) > 1.0:
+            return False
+        
+        return True
+
+
+class VideoProject(BaseModel):
+    """Complete project ready for the Final Director"""
+    id: str
+    name: str
+    script: str
+    song_path: str
+    audio_analysis: Optional[str] = None
+    plan: Optional[MasterPlan] = None
+    assets: List[MediaAsset] = Field(default_factory=list)
+    processing_script: Optional[str] = None
+    status: str = "created"  # created, planning, generating, ready, rendering, complete
+    
+    def is_ready_for_director(self) -> bool:
+        """Check if all assets are generated and ready for final assembly"""
+        if not self.plan:
+            return False
+        return len(self.assets) == len(self.plan.scenes)
+
+
+class GenerationStatus(BaseModel):
+    """Status of the media generation process"""
+    project_id: str
+    total_scenes: int
+    completed_scenes: int
+    current_scene: Optional[int] = None
+    status: str  # pending, in_progress, complete, failed
+    error: Optional[str] = None
+    assets: List[MediaAsset] = Field(default_factory=list)
+    
+    @property
+    def progress_percent(self) -> float:
+        if self.total_scenes == 0:
+            return 0.0
+        return (self.completed_scenes / self.total_scenes) * 100

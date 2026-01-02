@@ -1,20 +1,17 @@
 fastapi
-uvicorn
-python-multipart
-langchain
-langchain-openai
-langchain-core
-fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 python-multipart
-# AI / ML
-langchain-openai
-langchain-community
-moviepy
-torch --index-url https://download.pytorch.org/whl/cu118
-transformers
-soundfile
-datasets
-requests
+
+# LLM
+httpx
+
+# Google AI
 google-genai
+
+# Video Processing
+moviepy
+
+# Optional: Audio processing
+# pydub
+# librosa
