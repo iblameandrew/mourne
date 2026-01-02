@@ -136,17 +136,19 @@ class ReplicateVideoBackend:
         self, 
         prompt: str, 
         output_path: str,
+        input_image_path: Optional[str] = None,
         duration_seconds: int = 4,
         fps: int = 24,
         width: int = 1024,
         height: int = 576
     ) -> str:
         """
-        Generate a video from a text prompt.
+        Generate a video from a text prompt or an image.
         
         Args:
             prompt: Text description of the video
             output_path: Path to save the video (.mp4)
+            input_image_path: Optional path to an image to animate
             duration_seconds: Video duration
             fps: Frames per second
             width: Video width
@@ -163,6 +165,16 @@ class ReplicateVideoBackend:
             "fps": fps
         }
         
+        if input_image_path and os.path.exists(input_image_path):
+            # For Replicate via HTTP, we usually need to upload the file first
+            # to get a URL, or use a data URI for small files.
+            # Stable Video Diffusion on Replicate specifically uses 'input_image'
+            import base64
+            with open(input_image_path, "rb") as f:
+                encoded = base64.b64encode(f.read()).decode("utf-8")
+                mime_type = mimetypes.guess_type(input_image_path)[0] or "image/png"
+                input_data["input_image"] = f"data:{mime_type};base64,{encoded}"
+
         async with httpx.AsyncClient(timeout=600.0) as client:
             # Start prediction
             response = await client.post(

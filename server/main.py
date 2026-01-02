@@ -476,6 +476,109 @@ async def upload_audio(file: UploadFile = File(...)):
     return {"path": file_path, "filename": file.filename}
 
 
+# Store for custom assets (in production, use a database)
+_custom_assets: dict = {}
+
+
+@app.post("/api/project/{project_id}/asset/upload")
+async def upload_custom_asset(
+    project_id: str,
+    file: UploadFile = File(...)
+):
+    """
+    Upload a custom image asset for a project.
+    Users can upload their own images instead of using AI generation.
+    """
+    project = orchestrator.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Create assets directory
+    asset_dir = os.path.join("uploads", project_id, "custom_assets")
+    os.makedirs(asset_dir, exist_ok=True)
+    
+    # Generate unique asset ID
+    asset_id = str(uuid.uuid4())[:8]
+    file_ext = os.path.splitext(file.filename)[1] or ".png"
+    file_path = os.path.join(asset_dir, f"{asset_id}{file_ext}")
+    
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    
+    # Store in memory (would be DB in production)
+    if project_id not in _custom_assets:
+        _custom_assets[project_id] = {}
+    
+    _custom_assets[project_id][asset_id] = {
+        "id": asset_id,
+        "path": file_path,
+        "name": file.filename,
+        "bound_scene": None
+    }
+    
+    return {
+        "asset_id": asset_id,
+        "path": file_path,
+        "name": file.filename,
+        "message": "Asset uploaded successfully"
+    }
+
+
+@app.post("/api/project/{project_id}/asset/bind")
+async def bind_asset_to_scene(
+    project_id: str,
+    asset_id: str,
+    scene_number: int
+):
+    """
+    Bind a custom asset to a specific scene.
+    This tells the pipeline to use this image instead of generating one.
+    """
+    project = orchestrator.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if project_id not in _custom_assets or asset_id not in _custom_assets[project_id]:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Update binding
+    _custom_assets[project_id][asset_id]["bound_scene"] = scene_number
+    
+    return {
+        "asset_id": asset_id,
+        "bound_scene": scene_number,
+        "message": f"Asset bound to scene {scene_number}"
+    }
+
+
+@app.get("/api/project/{project_id}/assets/custom")
+async def get_custom_assets(project_id: str):
+    """
+    Get all custom assets for a project.
+    """
+    if project_id not in _custom_assets:
+        return {"assets": []}
+    
+    return {"assets": list(_custom_assets[project_id].values())}
+
+
+@app.delete("/api/project/{project_id}/asset/{asset_id}")
+async def delete_custom_asset(project_id: str, asset_id: str):
+    """
+    Delete a custom asset.
+    """
+    if project_id not in _custom_assets or asset_id not in _custom_assets[project_id]:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    asset = _custom_assets[project_id].pop(asset_id)
+    
+    # Delete file
+    if os.path.exists(asset["path"]):
+        os.remove(asset["path"])
+    
+    return {"deleted": asset_id}
+
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""

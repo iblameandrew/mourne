@@ -329,21 +329,109 @@ class VideoGeneratorAgent:
             return "neutral"
 
 
+class ImageToVideoAgent:
+    """Animates an existing image asset into a video"""
+    
+    def __init__(
+        self, 
+        output_dir: str = "generated_media",
+        video_backend: Optional[VeoVideoBackend] = None,
+        prompt_refiner: Optional[PromptRefinerAgent] = None
+    ):
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        
+        self.backend = video_backend or MediaBackendManager.get_video_backend()
+        self.prompt_refiner = prompt_refiner or PromptRefinerAgent()
+    
+    async def animate(self, scene: SceneStep, image_asset: MediaAsset) -> MediaAsset:
+        """
+        Produce a video from an image asset.
+        
+        Args:
+            scene: The scene step
+            image_asset: The previously generated image
+        
+        Returns:
+            New MediaAsset (video)
+        """
+        # We can use the refined prompt from the image or refine a new one for motion
+        prompt = image_asset.stitching_card.visual_prompt
+        
+        # Add motion cues to prompt
+        motion_prompt = f"{prompt}, subtle cinematic motion, parallax effect, professional camera movement"
+        
+        # Calculate duration
+        raw_duration = scene.duration
+        if raw_duration <= 5:
+            duration = 4
+        elif raw_duration <= 7:
+            duration = 6
+        else:
+            duration = 8
+        
+        # Generate unique filename
+        asset_id = str(uuid.uuid4())[:8]
+        output_path = os.path.join(
+            self.output_dir, 
+            f"scene_{scene.scene_number:03d}_animated_{asset_id}.mp4"
+        )
+        
+        # Generate the video from image
+        final_path = await self.backend.generate_video(
+            prompt=motion_prompt, 
+            output_path=output_path,
+            input_image_path=image_asset.asset_path,
+            duration_seconds=duration
+        )
+        
+        # Create new stitching card based on the image's card
+        image_card = image_asset.stitching_card
+        card = StitchingCard(
+            id=asset_id,
+            scene_number=scene.scene_number,
+            time_start=scene.time_start,
+            time_end=scene.time_end,
+            visual_prompt=motion_prompt,
+            audio_cue=image_card.audio_cue,
+            mood_description=image_card.mood_description,
+            transition_in=image_card.transition_in,
+            transition_out=image_card.transition_out,
+            ken_burns_direction=None,
+            color_grade_hint=image_card.color_grade_hint
+        )
+        
+        return MediaAsset(
+            asset_path=final_path,
+            media_type=MediaType.VIDEO,
+            stitching_card=card,
+            generation_metadata={
+                "model": "veo-image2video" if hasattr(self.backend, 'model') and "veo" in str(self.backend.model) else "svd-image2video",
+                "prompt": motion_prompt,
+                "input_image": image_asset.asset_path,
+                "requested_duration": duration
+            }
+        )
+
+
 class MediaGenerationCoordinator:
     """
     Coordinates the generation of all media assets for a plan.
     Dispatches to appropriate agents based on media type.
+    Includes dynamic Image2Video logic.
     """
     
     def __init__(
         self,
         output_dir: str = "generated_media",
         image_agent: Optional[ImageGeneratorAgent] = None,
-        video_agent: Optional[VideoGeneratorAgent] = None
+        video_agent: Optional[VideoGeneratorAgent] = None,
+        i2v_agent: Optional[ImageToVideoAgent] = None
     ):
         self.output_dir = output_dir
         self.image_agent = image_agent or ImageGeneratorAgent(output_dir)
         self.video_agent = video_agent or VideoGeneratorAgent(output_dir)
+        self.i2v_agent = i2v_agent or ImageToVideoAgent(output_dir)
     
     async def generate_all(
         self, 
@@ -367,7 +455,32 @@ class MediaGenerationCoordinator:
             print(f"Generating scene {scene.scene_number}/{total}: {scene.description[:50]}...")
             
             try:
-                if scene.suggested_media_type == MediaType.IMAGE:
+                asset = None
+                
+                # Dynamic Logic: Decide when to use Image2Video
+                # If scene suggests video but we want maximum control, 
+                # or if the user/orchestrator specifically flags it.
+                # Here we implement the logic: If it's a VIDEO scene AND 
+                # it's a "scenic/artistic" mood, we might produce an image first.
+                
+                should_image_to_video = False
+                if scene.suggested_media_type == MediaType.VIDEO:
+                    # Heuristic: Animate if mood is cinematic or artistic
+                    cinematic_moods = ["epic", "cinematic", "painterly", "dreamy", "scenic"]
+                    if any(m in scene.mood.lower() for m in cinematic_moods):
+                        should_image_to_video = True
+                
+                if should_image_to_video:
+                    # Step 1: Generate high-quality Image
+                    img_asset = await self.image_agent.generate(scene)
+                    # Notify progress for the image (optional, or wait for video)
+                    if on_progress:
+                        on_progress(scene.scene_number, total, img_asset)
+                    
+                    # Step 2: Animate the Image
+                    print(f"  --> Animating image for scene {scene.scene_number}...")
+                    asset = await self.i2v_agent.animate(scene, img_asset)
+                elif scene.suggested_media_type == MediaType.IMAGE:
                     asset = await self.image_agent.generate(scene)
                 else:
                     asset = await self.video_agent.generate(scene)

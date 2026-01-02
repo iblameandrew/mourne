@@ -149,6 +149,7 @@ class VeoVideoBackend:
         self, 
         prompt: str, 
         output_path: str,
+        input_image_path: Optional[str] = None,
         duration_seconds: int = 6,
         resolution: str = "1080p",
         aspect_ratio: str = "16:9",
@@ -156,11 +157,12 @@ class VeoVideoBackend:
         poll_interval: int = 15
     ) -> str:
         """
-        Generate a video from a text prompt.
+        Generate a video from a text prompt or an image.
         
         Args:
             prompt: Text description of the video to generate
             output_path: Full path for output video file (.mp4)
+            input_image_path: Optional path to an image to animate (image-to-video)
             duration_seconds: Video duration (4, 6, or 8 seconds)
             resolution: "720p" or "1080p"
             aspect_ratio: "16:9" or "9:16"
@@ -177,6 +179,7 @@ class VeoVideoBackend:
             self._generate_sync,
             prompt,
             output_path,
+            input_image_path,
             duration_seconds,
             resolution,
             aspect_ratio,
@@ -190,6 +193,7 @@ class VeoVideoBackend:
         self,
         prompt: str,
         output_path: str,
+        input_image_path: Optional[str],
         duration_seconds: int,
         resolution: str,
         aspect_ratio: str,
@@ -209,12 +213,21 @@ class VeoVideoBackend:
         
         config = types.GenerateVideosConfig(**config_kwargs)
         
+        # Build image input if provided
+        kwargs = {
+            "model": self.model,
+            "prompt": prompt,
+            "config": config,
+        }
+        
+        if input_image_path and os.path.exists(input_image_path):
+            # Load the image using the genai types
+            print(f"Loading input image for animation: {input_image_path}")
+            with open(input_image_path, "rb") as f:
+                kwargs["image"] = types.Image.from_bytes(data=f.read())
+
         # Start long-running operation
-        operation = self.client.models.generate_videos(
-            model=self.model,
-            prompt=prompt,
-            config=config,
-        )
+        operation = self.client.models.generate_videos(**kwargs)
         
         print(f"Video generation started: {operation.name}")
         
@@ -222,23 +235,24 @@ class VeoVideoBackend:
         while not operation.done:
             print(f"Waiting for video generation... (polling every {poll_interval}s)")
             time.sleep(poll_interval)
-            operation = self.client.operations.get(operation.name)
+            operation = self.client.operations.get(operation)
         
         # Process result
-        if operation.result:
-            generated_video = operation.result.generated_videos[0]
+        # The operation response contains the generated videos
+        if operation.response and operation.response.generated_videos:
+            generated_video = operation.response.generated_videos[0]
             print(f"Video generated: {generated_video.video.name}")
             
-            # Download the video
-            self.client.files.download(
+            # Download the video using the client.download method
+            self.client.download(
                 file=generated_video.video, 
-                extra_path=output_path
+                path=output_path
             )
             print(f"Video downloaded to: {output_path}")
             
             return output_path
         else:
-            raise RuntimeError(f"Video generation failed: {operation.error}")
+            raise RuntimeError(f"Video generation failed or returned no result: {operation.error if hasattr(operation, 'error') else 'Unknown error'}")
 
 
 class MediaBackendManager:
