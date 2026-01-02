@@ -1,9 +1,12 @@
-# Mourne - The Obsidian Siren
+# Mourne
+<div align="center">
+  <img src="client/public/logo.png" width="150" alt="Mourne Logo" />
+</div>
 
-Mourne is a Generative AI Video Creation Engine. It orchestrates AI models to turn text scripts and music into cinematic music videos.
+Mourne is a comprehensive Neural Orchestration Interface for Generative AI Video Creation. It orchestrates local and cloud-based AI models to turn text scripts and music into cinematic experiences.
 
 ## Directory Structure
-- `client/`: React + Vite Frontend (The "Obsidian Siren" UI).
+- `client/`: React + Vite Frontend (The Spectral Terminal UI).
 - `server/`: FastAPI Backend (Orchestrator, Director, AI Logic).
 - `legacy_desktop/`: (Archived) Original PyQt6 desktop prototype.
 
