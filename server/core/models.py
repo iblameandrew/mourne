@@ -31,6 +31,45 @@ class KenBurnsDirection(str, Enum):
     PAN_DOWN = "pan_down"
 
 
+class VoiceType(str, Enum):
+    """Type of voice overlay for a scene"""
+    NARRATOR = "narrator"           # Omniscient storytelling voice
+    CHARACTER = "character"         # Entity/character speaking
+    INNER_THOUGHT = "inner_thought" # Internal monologue
+    NONE = "none"                   # No voice for this scene
+
+
+class VoiceGender(str, Enum):
+    """Voice gender profile"""
+    MASCULINE = "masculine"
+    FEMININE = "feminine"
+    ANDROGYNOUS = "androgynous"
+
+
+class VoiceDirection(BaseModel):
+    """
+    Voice calibration for a scene.
+    Determines if entities speak, what voice type, and detailed voice parameters.
+    """
+    voice_type: VoiceType = VoiceType.NONE
+    should_speak: bool = False
+    
+    # Voice characteristics (0.0 to 1.0 scale)
+    tone: float = Field(default=0.5, ge=0.0, le=1.0, description="0=dark/serious, 1=bright/uplifting")
+    cadence: float = Field(default=0.5, ge=0.0, le=1.0, description="0=slow/deliberate, 1=fast/energetic")
+    warmth: float = Field(default=0.5, ge=0.0, le=1.0, description="0=cold/distant, 1=warm/intimate")
+    solemnity: float = Field(default=0.5, ge=0.0, le=1.0, description="0=casual/playful, 1=solemn/reverent")
+    
+    # Voice profile
+    gender: VoiceGender = VoiceGender.ANDROGYNOUS
+    age_hint: str = Field(default="adult", description="young, adult, elderly")
+    accent_hint: Optional[str] = None
+    
+    # Content
+    dialogue_text: Optional[str] = Field(default=None, description="What to say if should_speak=True")
+    voice_notes: Optional[str] = Field(default=None, description="Director notes for voice delivery")
+
+
 class StitchingCard(BaseModel):
     """
     Metadata attached to each generated media asset.
@@ -48,6 +87,8 @@ class StitchingCard(BaseModel):
     transition_duration: float = 0.5
     ken_burns_direction: Optional[KenBurnsDirection] = None
     color_grade_hint: Optional[str] = None  # e.g., "warm", "cold", "desaturated"
+    voice_direction: Optional[VoiceDirection] = Field(default=None, description="Voice calibration for this scene")
+    voice_audio_path: Optional[str] = Field(default=None, description="Path to generated voice audio clip")
     
     @property
     def duration(self) -> float:
@@ -76,6 +117,7 @@ class SceneStep(BaseModel):
     audio_context: str = Field(description="What's happening in the audio at this moment")
     mood: str = Field(description="Emotional tone (e.g., melancholic, energetic, ethereal)")
     suggested_transition: Optional[TransitionType] = TransitionType.CROSSFADE
+    voice_direction: Optional[VoiceDirection] = Field(default=None, description="Voice orchestration for this scene")
     
     @property
     def duration(self) -> float:

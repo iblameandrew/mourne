@@ -5,7 +5,7 @@ Decomposes a creative script into granular visual steps for media generation.
 import json
 from typing import Optional
 from .llm_backend import get_planner_llm, OpenRouterLLM
-from .models import MasterPlan, SceneStep, MediaType
+from .models import MasterPlan, SceneStep, MediaType, VoiceDirection, VoiceType, VoiceGender
 
 
 PLANNER_SYSTEM_PROMPT = """You are a Master Video Planner for cinematic AI-generated music videos.
@@ -38,7 +38,19 @@ Each scene should be 2-8 seconds and represent a single visual moment.
             "visual_prompt_draft": "Detailed visual prompt for AI generation - be VERY specific about composition, lighting, style",
             "audio_context": "What's happening in the audio at this moment",
             "mood": "emotional tone (e.g., melancholic, energetic, ethereal)",
-            "suggested_transition": "crossfade"
+            "suggested_transition": "crossfade",
+            "voice": {{
+                "should_speak": true,
+                "voice_type": "narrator",
+                "dialogue_text": "The exact words to speak (if speaking)",
+                "tone": 0.5,
+                "cadence": 0.5,
+                "warmth": 0.5,
+                "solemnity": 0.5,
+                "gender": "androgynous",
+                "age_hint": "adult",
+                "voice_notes": "Director notes for voice delivery"
+            }}
         }},
         ...more scenes to cover the ENTIRE duration...
     ]
@@ -56,6 +68,17 @@ Each scene should be 2-8 seconds and represent a single visual moment.
 5. Match visual mood to audio mood precisely
 6. Each scene's time_end should equal the next scene's time_start
 7. Transitions: "fade", "crossfade", "cut", "zoom", or "slide"
+
+**Voice Direction Rules:**
+8. Not every scene needs voice - silence can be powerful
+9. Voice types: "narrator" (omniscient), "character" (entity speaking), "inner_thought" (internal monologue), "none"
+10. Calibrate voice parameters (0.0 to 1.0):
+    - tone: 0=dark/serious, 1=bright/uplifting
+    - cadence: 0=slow/deliberate, 1=fast/energetic
+    - warmth: 0=cold/distant, 1=warm/intimate
+    - solemnity: 0=casual/playful, 1=solemn/reverent
+11. Ensure dialogue_text length fits the scene duration
+12. Vary voice presence across scenes for dynamic storytelling
 
 Return ONLY valid JSON. No explanation, no markdown code blocks.
 """
@@ -116,7 +139,8 @@ class MasterPlanner:
                 visual_prompt_draft=scene_data["visual_prompt_draft"],
                 audio_context=scene_data.get("audio_context", ""),
                 mood=scene_data.get("mood", "neutral"),
-                suggested_transition=scene_data.get("suggested_transition")
+                suggested_transition=scene_data.get("suggested_transition"),
+                voice_direction=self._parse_voice_direction(scene_data.get("voice"))
             )
             scenes.append(scene)
         
@@ -185,7 +209,8 @@ Return the complete refined plan as JSON.
                 visual_prompt_draft=scene_data["visual_prompt_draft"],
                 audio_context=scene_data.get("audio_context", ""),
                 mood=scene_data.get("mood", "neutral"),
-                suggested_transition=scene_data.get("suggested_transition")
+                suggested_transition=scene_data.get("suggested_transition"),
+                voice_direction=self._parse_voice_direction(scene_data.get("voice"))
             )
             scenes.append(scene)
         
@@ -196,3 +221,52 @@ Return the complete refined plan as JSON.
             total_duration=float(result.get("total_duration", plan.total_duration)),
             scenes=scenes
         )
+    
+    def _parse_voice_direction(self, voice_data: dict) -> Optional[VoiceDirection]:
+        """Parse voice direction from LLM JSON response"""
+        if not voice_data:
+            return None
+        
+        try:
+            # Parse voice type
+            voice_type_str = voice_data.get("voice_type", "none").lower()
+            voice_type_map = {
+                "narrator": VoiceType.NARRATOR,
+                "character": VoiceType.CHARACTER,
+                "inner_thought": VoiceType.INNER_THOUGHT,
+                "none": VoiceType.NONE
+            }
+            voice_type = voice_type_map.get(voice_type_str, VoiceType.NONE)
+            
+            # Parse gender
+            gender_str = voice_data.get("gender", "androgynous").lower()
+            gender_map = {
+                "masculine": VoiceGender.MASCULINE,
+                "feminine": VoiceGender.FEMININE,
+                "androgynous": VoiceGender.ANDROGYNOUS
+            }
+            gender = gender_map.get(gender_str, VoiceGender.ANDROGYNOUS)
+            
+            # Helper to clamp values
+            def clamp(val, min_v=0.0, max_v=1.0):
+                try:
+                    return max(min_v, min(max_v, float(val)))
+                except (TypeError, ValueError):
+                    return 0.5
+            
+            return VoiceDirection(
+                voice_type=voice_type,
+                should_speak=voice_data.get("should_speak", False),
+                tone=clamp(voice_data.get("tone", 0.5)),
+                cadence=clamp(voice_data.get("cadence", 0.5)),
+                warmth=clamp(voice_data.get("warmth", 0.5)),
+                solemnity=clamp(voice_data.get("solemnity", 0.5)),
+                gender=gender,
+                age_hint=voice_data.get("age_hint", "adult"),
+                accent_hint=voice_data.get("accent_hint"),
+                dialogue_text=voice_data.get("dialogue_text"),
+                voice_notes=voice_data.get("voice_notes")
+            )
+        except Exception as e:
+            print(f"Warning: Failed to parse voice direction: {e}")
+            return None

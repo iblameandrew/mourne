@@ -27,6 +27,15 @@ Generate a complete, runnable Python script using MoviePy to assemble a cinemati
 **Audio Track:** {song_path}
 **Total Duration:** {total_duration} seconds
 
+**User's Narrative Vision:**
+{user_script}
+
+The above is the user's original creative concept and narrative flow. Use this as your PRIMARY GUIDE for:
+- How scenes should transition emotionally
+- The overall story arc and pacing
+- Key moments that should feel climactic vs intimate
+- The desired tone, mood, and atmosphere throughout
+
 **Assets and Stitching Cards:**
 {assets_description}
 
@@ -63,6 +72,13 @@ You are crafting a music video that CLICKS with the song. Apply these techniques
    - Default crossfade: {transition_duration}s
    - For energetic scenes: 0.2-0.4s
    - For emotional scenes: 0.8-1.5s
+
+6. **Voice Overlay Guidelines:**
+   - Load voice audio clips at their specified time_start
+   - Apply reverb/echo for INNER_THOUGHT voice types
+   - Calibrate voice volume based on music intensity (duck music during voiceover)
+   - Match voice audio effects to the mood (warm EQ for intimate scenes, etc.)
+   - Some scenes have NO voice - respect the silence
 
 **Script Requirements:**
 1. Use `moviepy.editor` for all video operations
@@ -130,6 +146,7 @@ class Director:
             project_name=project.name,
             song_path=project.song_path,
             total_duration=total_duration,
+            user_script=project.script,
             assets_description=assets_description,
             transition_duration=transition_duration
         )
@@ -153,6 +170,17 @@ class Director:
         for asset in sorted(assets, key=lambda a: a.stitching_card.scene_number):
             card = asset.stitching_card
             
+            # Format voice direction info
+            voice_info = "No voice"
+            if card.voice_direction and card.voice_direction.should_speak:
+                vd = card.voice_direction
+                voice_info = f"""Voice: {vd.voice_type.value}
+    Dialogue: "{vd.dialogue_text or 'N/A'}"
+    Tone: {vd.tone:.1f} | Cadence: {vd.cadence:.1f} | Warmth: {vd.warmth:.1f} | Solemnity: {vd.solemnity:.1f}
+    Voice Profile: {vd.gender.value}, {vd.age_hint}
+    Audio Path: {card.voice_audio_path or 'TO_BE_GENERATED'}
+    Notes: {vd.voice_notes or 'None'}"""
+            
             lines.append(f"""
 Scene {card.scene_number}:
   - Type: {asset.media_type.value}
@@ -164,6 +192,7 @@ Scene {card.scene_number}:
   - Color Grade Hint: {card.color_grade_hint or 'neutral'}
   - Ken Burns: {card.ken_burns_direction.value if card.ken_burns_direction else 'N/A'}
   - Audio Context: {card.audio_cue[:150]}...
+  - {voice_info}
 """)
         
         return "\n".join(lines)
