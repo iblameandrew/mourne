@@ -1,0 +1,20 @@
+fastapi
+uvicorn
+python-multipart
+langchain
+langchain-openai
+langchain-core
+fastapi
+uvicorn
+pydantic
+python-multipart
+# AI / ML
+langchain-openai
+langchain-community
+moviepy
+torch --index-url https://download.pytorch.org/whl/cu118
+transformers
+soundfile
+datasets
+requests
+google-genai
