@@ -1,6 +1,6 @@
 # Mourne
 <div align="center">
-  <img src="client/public/logo.png" width="150" alt="Mourne Logo" />
+  <img src="client/public/logo_v2.png" width="150" alt="Mourne Logo" />
 </div>
 
 Mourne is a comprehensive Neural Orchestration Interface for Generative AI Video Creation. It orchestrates local and cloud-based AI models to turn text scripts and music into cinematic experiences.
