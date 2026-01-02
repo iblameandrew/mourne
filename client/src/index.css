@@ -158,6 +158,24 @@ body {
 }
 
 /* ============================================
+   SPARKLE ROTATE (for FluxEye)
+   ============================================ */
+@keyframes sparkle-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-sparkle-rotate {
+    /* Default speed, overridden by React inline styles */
+    animation: sparkle-rotate 10s linear infinite;
+}
+
+/* ============================================
    CUSTOM SCROLLBAR
    ============================================ */
 .scrollbar-thin::-webkit-scrollbar {

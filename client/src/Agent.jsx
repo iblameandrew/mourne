@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Scroll, Plus, X } from 'lucide-react';
-import FluxOrb from './FluxOrb';
+import FluxEye from './FluxEye';
 
 const Agent = () => {
     const [input, setInput] = useState("");
@@ -56,8 +56,10 @@ const Agent = () => {
                 <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Agent Director</h2>
                 <div className="flex items-center gap-3">
                     <span className="text-[10px] text-zinc-600 font-mono">{isThinking ? 'THINKING...' : 'IDLE'}</span>
-                    {isThinking && <FluxOrb size="sm" />}
-                    {!isThinking && <div className="w-2 h-2 rounded-full bg-zinc-600" />}
+                    <FluxEye
+                        thinking={isThinking}
+                        className="scale-[0.25] -mr-4"
+                    />
                 </div>
             </div>
 
