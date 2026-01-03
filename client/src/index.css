@@ -176,6 +176,84 @@ body {
 }
 
 /* ============================================
+   REVEAL UP ANIMATION
+   ============================================ */
+@keyframes revealUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-reveal {
+    animation: revealUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ============================================
+   FLOAT ANIMATION
+   ============================================ */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+.animate-float {
+    animation: float 4s ease-in-out infinite;
+}
+
+/* ============================================
+   SOFT GLOW PULSE
+   ============================================ */
+@keyframes softGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 15px -5px rgba(255, 251, 235, 0.2);
+        border-color: rgba(255, 255, 255, 0.05);
+    }
+
+    50% {
+        box-shadow: 0 0 25px 0px rgba(255, 251, 235, 0.4);
+        border-color: rgba(255, 251, 235, 0.3);
+    }
+}
+
+.animate-softGlow {
+    animation: softGlow 3s ease-in-out infinite;
+}
+
+/* ============================================
+   BLUR IN ANIMATION
+   ============================================ */
+@keyframes blurIn {
+    from {
+        filter: blur(10px);
+        opacity: 0;
+    }
+
+    to {
+        filter: blur(0);
+        opacity: 1;
+    }
+}
+
+.animate-blurIn {
+    animation: blurIn 0.6s ease-out forwards;
+}
+
+/* ============================================
    CUSTOM SCROLLBAR
    ============================================ */
 .scrollbar-thin::-webkit-scrollbar {
@@ -193,4 +271,25 @@ body {
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Utility for staggered animations */
+.delay-100 {
+    animation-delay: 100ms;
+}
+
+.delay-200 {
+    animation-delay: 200ms;
+}
+
+.delay-300 {
+    animation-delay: 300ms;
+}
+
+.delay-400 {
+    animation-delay: 400ms;
+}
+
+.delay-500 {
+    animation-delay: 500ms;
 }

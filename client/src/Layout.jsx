@@ -20,7 +20,7 @@ const Layout = ({ children }) => {
             {/* 2. Content Frame */}
             <div className="relative z-10 flex flex-col h-screen p-4 gap-4">
                 {/* Application Header */}
-                <header className="flex items-center justify-between px-6 py-3 bg-surface/30 backdrop-blur-md border border-white/5 rounded-2xl shrink-0">
+                <header className="flex items-center justify-between px-6 py-3 bg-surface/30 backdrop-blur-md border border-white/5 rounded-2xl shrink-0 animate-reveal">
                     <div className="flex items-center gap-3">
                         <span className="font-light tracking-[0.2em] text-lg text-white uppercase ml-2 select-none">MOURNE</span>
                     </div>
@@ -38,7 +38,7 @@ const Layout = ({ children }) => {
                 </header>
 
                 {/* Main Workspace */}
-                <main className="flex-1 flex gap-4 min-h-0">
+                <main className="flex-1 flex gap-4 min-h-0 animate-reveal delay-100 opacity-0">
                     {children}
                 </main>
             </div>

@@ -69,9 +69,9 @@ const Agent = () => {
                     <div key={idx} className={`flex flex-col gap-1 ${msg.sender === 'User' ? 'items-end' : 'items-start'}`}>
                         <span className="text-[10px] uppercase font-bold text-zinc-600 ml-1">{msg.sender}</span>
                         <div
-                            className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender === 'User'
+                            className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm animate-reveal opacity-0 ${msg.sender === 'User'
                                 ? 'bg-primary/10 text-primary border border-primary/20 rounded-tr-sm'
-                                : 'bg-white/5 text-zinc-200 border border-white/5 rounded-tl-sm shadow-[0_4px_20px_rgba(0,0,0,0.2)]'
+                                : 'bg-white/5 text-zinc-200 border border-white/5 rounded-tl-sm shadow-[0_4px_20px_rgba(0,0,0,0.2)] animate-softGlow'
                                 }`}
                         >
                             {msg.text}

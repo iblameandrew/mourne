@@ -160,6 +160,7 @@ class VideoProject(BaseModel):
     name: str
     script: str
     song_path: str
+    song_duration: Optional[float] = Field(default=None, description="Duration of the audio track in seconds")
     audio_analysis: Optional[str] = None
     plan: Optional[MasterPlan] = None
     assets: List[MediaAsset] = Field(default_factory=list)

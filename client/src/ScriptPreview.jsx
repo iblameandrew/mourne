@@ -29,11 +29,11 @@ const ScriptPreview = ({
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#0d0d0f] rounded-xl border border-white/5 overflow-hidden">
+        <div className="flex flex-col h-full bg-[#0d0d0f] rounded-xl border border-white/5 overflow-hidden animate-reveal">
             {/* Header */}
             <div className="p-4 border-b border-white/5 flex justify-between items-center bg-surface/30">
                 <div className="flex items-center gap-3">
-                    <Code size={16} className="text-primary" />
+                    <Code size={16} className="text-primary animate-float" />
                     <div>
                         <h3 className="text-sm font-bold text-white">Generated Script</h3>
                         <p className="text-[10px] text-zinc-500 font-mono">MoviePy assembly ready for approval</p>
@@ -99,8 +99,8 @@ const ScriptPreview = ({
                     onClick={handleApprove}
                     disabled={isExecuting}
                     className={`px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${isExecuting
-                            ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
-                            : 'bg-green-600 text-white hover:bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]'
+                        ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]'
                         }`}
                 >
                     <Play size={14} /> Approve & Execute

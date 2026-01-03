@@ -52,7 +52,7 @@ class CreateProjectResponse(BaseModel):
 
 
 class GeneratePlanRequest(BaseModel):
-    duration: float  # Total video duration in seconds
+    duration: Optional[float] = None  # Defaults to song duration if not provided
 
 
 class RefinePlanRequest(BaseModel):
@@ -82,13 +82,26 @@ class ScriptResponse(BaseModel):
 
 
 class ConfigRequest(BaseModel):
-    provider: str  # 'google' | 'replicate'
+    # Per-model providers
+    text_provider: Optional[str] = None     # 'openrouter' | 'google'
+    image_provider: Optional[str] = None    # 'google' | 'replicate'
+    video_provider: Optional[str] = None    # 'runway' | 'replicate' | 'google'
+    
+    # API Keys
+    google_key: Optional[str] = None
+    replicate_key: Optional[str] = None
+    runway_key: Optional[str] = None
     openrouter_key: Optional[str] = None
-    openrouter_model: Optional[str] = None
+    
+    # Model names
+    text_model: Optional[str] = None
+    image_model: Optional[str] = None
+    video_model: Optional[str] = None
 
 
 class ConfigResponse(BaseModel):
-    provider: str
+    image_provider: str
+    video_provider: str
     message: str
 
 
@@ -99,22 +112,33 @@ class ConfigResponse(BaseModel):
 @app.post("/api/config", response_model=ConfigResponse)
 async def configure_provider(config: ConfigRequest):
     """
-    Configure the media generation provider and optional LLM backend.
+    Configure per-model providers and API keys.
     """
     try:
-        # Set the media backend provider
-        MediaBackendManager.set_provider(config.provider)
+        # Configure media backends
+        MediaBackendManager.configure(
+            image_provider=config.image_provider,
+            video_provider=config.video_provider,
+            google_key=config.google_key,
+            replicate_key=config.replicate_key,
+            runway_key=config.runway_key
+        )
         
-        # If using Replicate with OpenRouter for text, set environment variables
-        if config.provider == "replicate" and config.openrouter_key:
+        # Configure text provider (OpenRouter or Google)
+        if config.openrouter_key:
             os.environ["OPENROUTER_API_KEY"] = config.openrouter_key
-            if config.openrouter_model:
-                os.environ["PLANNER_MODEL"] = config.openrouter_model
-                os.environ["CREATIVE_MODEL"] = config.openrouter_model
+        if config.google_key:
+            os.environ["GEMINI_API_KEY"] = config.google_key
+        if config.text_model:
+            os.environ["PLANNER_MODEL"] = config.text_model
+            os.environ["CREATIVE_MODEL"] = config.text_model
+        
+        backend_config = MediaBackendManager.get_config()
         
         return ConfigResponse(
-            provider=config.provider,
-            message=f"Provider set to {config.provider}"
+            image_provider=backend_config["image_provider"],
+            video_provider=backend_config["video_provider"],
+            message="Configuration updated successfully"
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -123,8 +147,9 @@ async def configure_provider(config: ConfigRequest):
 @app.get("/api/config")
 async def get_config():
     """Get current configuration"""
+    backend_config = MediaBackendManager.get_config()
     return {
-        "provider": MediaBackendManager.get_provider(),
+        **backend_config,
         "openrouter_configured": bool(os.environ.get("OPENROUTER_API_KEY"))
     }
 

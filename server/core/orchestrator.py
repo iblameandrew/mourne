@@ -16,6 +16,13 @@ from .master_planner import MasterPlanner
 from .sub_agents import MediaGenerationCoordinator
 from .llm_backend import OpenRouterLLM
 
+# Audio duration extraction
+try:
+    from pydub import AudioSegment
+    PYDUB_AVAILABLE = True
+except ImportError:
+    PYDUB_AVAILABLE = False
+
 
 class Orchestrator:
     """
@@ -66,6 +73,33 @@ class Orchestrator:
         # For now, return a placeholder that can be enhanced
         return f"Audio track from: {os.path.basename(audio_path)}"
     
+    def extract_audio_duration(self, audio_path: str) -> float:
+        """
+        Extract the duration of an audio file in seconds.
+        
+        Args:
+            audio_path: Path to the audio file
+        
+        Returns:
+            Duration in seconds, or 60.0 as fallback
+        """
+        if not os.path.exists(audio_path):
+            print(f"Warning: Audio file not found: {audio_path}")
+            return 60.0  # Default fallback
+        
+        if PYDUB_AVAILABLE:
+            try:
+                audio = AudioSegment.from_file(audio_path)
+                duration = len(audio) / 1000.0  # Convert ms to seconds
+                print(f"Extracted audio duration: {duration:.2f}s")
+                return duration
+            except Exception as e:
+                print(f"Warning: Failed to extract audio duration: {e}")
+                return 60.0
+        else:
+            print("Warning: pydub not available, using default duration")
+            return 60.0
+    
     async def create_project(
         self,
         project_id: str,
@@ -88,11 +122,15 @@ class Orchestrator:
         # Analyze the audio
         audio_analysis = await self.analyze_audio(song_path)
         
+        # Extract song duration
+        song_duration = self.extract_audio_duration(song_path)
+        
         project = VideoProject(
             id=project_id,
             name=name,
             script=script,
             song_path=song_path,
+            song_duration=song_duration,
             audio_analysis=audio_analysis,
             status="created"
         )
@@ -103,14 +141,14 @@ class Orchestrator:
     async def generate_plan(
         self,
         project_id: str,
-        duration: float
+        duration: float = None
     ) -> MasterPlan:
         """
         Generate a scene-by-scene plan for a project.
         
         Args:
             project_id: The project to plan
-            duration: Total video duration in seconds
+            duration: Total video duration in seconds (defaults to song duration)
         
         Returns:
             Generated MasterPlan
@@ -118,6 +156,14 @@ class Orchestrator:
         project = self._projects.get(project_id)
         if not project:
             raise ValueError(f"Project {project_id} not found")
+        
+        # Use song duration if no explicit duration provided
+        if duration is None or duration <= 0:
+            if project.song_duration:
+                duration = project.song_duration
+                print(f"Using song duration: {duration:.2f}s")
+            else:
+                raise ValueError("No duration specified and song duration not available")
         
         project.status = "planning"
         

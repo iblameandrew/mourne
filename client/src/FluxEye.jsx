@@ -27,7 +27,7 @@ export const FluxEye = ({
     return (
         <div className={`relative w-16 h-16 flex items-center justify-center select-none shrink-0 ${className}`}>
             {/* Outer high-fidelity lens body */}
-            <div className={`absolute inset-0 bg-[#0a0a0a] rounded-full border border-white/10 flex items-center justify-center transition-all duration-1000 ${(animate || thinking || pulsar) ? 'shadow-[0_0_80px_rgba(255,255,255,0.05)]' : 'shadow-[0_0_20px_rgba(0,0,0,0.8)]'}`}>
+            <div className={`absolute inset-0 bg-[#0a0a0a] rounded-full border border-white/10 flex items-center justify-center transition-all duration-1000 ${(animate || thinking || pulsar) ? 'shadow-[0_0_80px_rgba(255,255,255,0.05)] animate-softGlow' : 'shadow-[0_0_20px_rgba(0,0,0,0.8)]'}`}>
                 <div className="absolute inset-[3%] rounded-full border border-white/5 bg-[conic-gradient(from_0deg,_#1a1a1a,_#000,_#1a1a1a)]" />
             </div>
             {/* The vibrant Spectral Ring (The spinning part) */}

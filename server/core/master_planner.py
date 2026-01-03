@@ -22,7 +22,7 @@ Each scene should be 2-8 seconds and represent a single visual moment.
 **Input:**
 - Script/Concept: {script}
 - Audio/Lyrics Analysis: {audio_analysis}
-- Total Duration: {duration} seconds
+- Total Duration: {duration} seconds (THIS IS THE SONG LENGTH - COVER IT ENTIRELY)
 
 **Output Format (JSON):**
 {{
@@ -56,29 +56,36 @@ Each scene should be 2-8 seconds and represent a single visual moment.
     ]
 }}
 
-**Rules:**
-1. Use "video" for dynamic moments (movement, action, camera motion, transitions between states)
-2. Use "image" for static/contemplative moments (can apply Ken Burns effect later)
-3. Visual prompts should be HIGHLY detailed and cinematic:
-   - Describe camera angle (close-up, wide shot, aerial, dutch angle)
-   - Describe lighting (golden hour, neon glow, chiaroscuro, soft diffused)
-   - Describe style (photorealistic, anime, oil painting, film noir)
-   - Describe specific details (textures, colors, atmosphere)
-4. Ensure scenes cover the ENTIRE duration with no gaps
-5. Match visual mood to audio mood precisely
-6. Each scene's time_end should equal the next scene's time_start
-7. Transitions: "fade", "crossfade", "cut", "zoom", or "slide"
+**CRITICAL: Duration and Entity Budget Rules:**
+1. The total duration ({duration}s) is the SONG LENGTH. Your scenes MUST cover it entirely from 0.0s to {duration}s.
+2. Calculate how many scenes you need: For a 3-minute song (~180s), plan ~25-40 scenes.
+3. For LONGER videos (>120s), REUSE visual entities/characters multiple times across scenes.
+4. When reusing an entity (character, object, location), describe it IDENTICALLY each time.
+5. Define key recurring elements early and reference them consistently.
+
+**Visual Rules:**
+6. Use "video" for dynamic moments (movement, action, camera motion)
+7. Use "image" for static/contemplative moments (Ken Burns effect applied later)
+8. Visual prompts should be HIGHLY detailed and cinematic:
+   - Camera angle (close-up, wide shot, aerial, dutch angle)
+   - Lighting (golden hour, neon glow, chiaroscuro, soft diffused)
+   - Style (photorealistic, anime, oil painting, film noir)
+   - Specific details (textures, colors, atmosphere)
+9. Ensure scenes cover the ENTIRE duration with no gaps
+10. Match visual mood to audio mood precisely
+11. Each scene's time_end should equal the next scene's time_start
+12. Transitions: "fade", "crossfade", "cut", "zoom", or "slide"
 
 **Voice Direction Rules:**
-8. Not every scene needs voice - silence can be powerful
-9. Voice types: "narrator" (omniscient), "character" (entity speaking), "inner_thought" (internal monologue), "none"
-10. Calibrate voice parameters (0.0 to 1.0):
+13. Not every scene needs voice - silence can be powerful
+14. Voice types: "narrator" (omniscient), "character" (entity speaking), "inner_thought" (internal monologue), "none"
+15. Calibrate voice parameters (0.0 to 1.0):
     - tone: 0=dark/serious, 1=bright/uplifting
     - cadence: 0=slow/deliberate, 1=fast/energetic
     - warmth: 0=cold/distant, 1=warm/intimate
     - solemnity: 0=casual/playful, 1=solemn/reverent
-11. Ensure dialogue_text length fits the scene duration
-12. Vary voice presence across scenes for dynamic storytelling
+16. Ensure dialogue_text length fits the scene duration
+17. Vary voice presence across scenes for dynamic storytelling
 
 Return ONLY valid JSON. No explanation, no markdown code blocks.
 """

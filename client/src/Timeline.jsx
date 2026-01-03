@@ -17,10 +17,10 @@ const MediaCard = ({
     const isComplete = status === 'complete';
 
     return (
-        <div className="relative group">
+        <div className="relative group animate-reveal opacity-0" style={{ animationDelay: `${sceneNumber * 100}ms` }}>
             <div className={`
                 relative overflow-hidden rounded-xl 
-                bg-surface/40 border transition-all duration-500
+                bg-surface/40 border transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(34,197,94,0.1)]
                 ${isGenerating ? 'border-primary/30' : 'border-white/5'}
                 ${isComplete ? 'border-green-500/20' : ''}
             `}>
@@ -234,18 +234,18 @@ const Timeline = () => {
 
             {/* Final Video Display (Only when complete) */}
             {activeJob?.status === 'complete' && (
-                <div className="p-4 border-t border-white/5 bg-black/40 animate-fadeIn relative z-10">
+                <div className="p-4 border-t border-white/5 bg-black/40 animate-reveal relative z-10">
                     <div className="flex items-center justify-between mb-3 px-2">
                         <div className="flex items-center gap-2">
-                            <Film size={14} className="text-primary" />
+                            <Film size={14} className="text-primary animate-float" />
                             <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Master Assembly Complete</span>
                         </div>
                         <span className="text-[10px] font-mono text-zinc-600">final_render.mp4</span>
                     </div>
-                    <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 shadow-2xl group/video">
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 shadow-2xl group/video animate-softGlow transition-all duration-700">
                         <video
                             controls
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain animate-blurIn"
                             poster={activeJob.artifacts[0]?.thumbnailUrl}
                         >
                             <source src={`/media/final_${activeJob.id.split('-')[1]}.mp4`} type="video/mp4" />

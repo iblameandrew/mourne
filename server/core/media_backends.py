@@ -256,45 +256,97 @@ class VeoVideoBackend:
 
 
 class MediaBackendManager:
-    """Factory for media backends - supports Google and Replicate providers"""
+    """Factory for media backends - supports per-model provider selection"""
     
-    _provider: str = "google"  # 'google' | 'replicate'
+    # Per-model provider configuration
+    _image_provider: str = "google"  # 'google' | 'replicate'
+    _video_provider: str = "google"  # 'google' | 'replicate' | 'runway'
+    
+    # API keys
+    _google_key: str = None
+    _replicate_key: str = None
+    _runway_key: str = None
+    
+    # Cached backends
     _image_backend = None
     _video_backend = None
     
     @classmethod
+    def configure(
+        cls,
+        image_provider: str = None,
+        video_provider: str = None,
+        google_key: str = None,
+        replicate_key: str = None,
+        runway_key: str = None
+    ):
+        """
+        Configure per-model providers and API keys.
+        Only updates fields that are provided (not None).
+        """
+        if image_provider is not None:
+            if image_provider not in ["google", "replicate"]:
+                raise ValueError(f"Invalid image provider: {image_provider}")
+            if image_provider != cls._image_provider:
+                cls._image_provider = image_provider
+                cls._image_backend = None  # Reset cache
+        
+        if video_provider is not None:
+            if video_provider not in ["google", "replicate", "runway"]:
+                raise ValueError(f"Invalid video provider: {video_provider}")
+            if video_provider != cls._video_provider:
+                cls._video_provider = video_provider
+                cls._video_backend = None  # Reset cache
+        
+        if google_key is not None:
+            cls._google_key = google_key
+        if replicate_key is not None:
+            cls._replicate_key = replicate_key
+        if runway_key is not None:
+            cls._runway_key = runway_key
+    
+    @classmethod
     def set_provider(cls, provider: str):
-        """Set the active provider and reset backends"""
-        if provider not in ["google", "replicate"]:
-            raise ValueError(f"Unknown provider: {provider}")
-        if provider != cls._provider:
-            cls._provider = provider
-            cls._image_backend = None
-            cls._video_backend = None
+        """Legacy: Set both image and video to same provider"""
+        cls.configure(image_provider=provider, video_provider=provider)
     
     @classmethod
     def get_provider(cls) -> str:
-        return cls._provider
+        """Legacy: Returns image provider for compatibility"""
+        return cls._image_provider
+    
+    @classmethod
+    def get_config(cls) -> dict:
+        """Get current configuration"""
+        return {
+            "image_provider": cls._image_provider,
+            "video_provider": cls._video_provider,
+            "google_configured": bool(cls._google_key),
+            "replicate_configured": bool(cls._replicate_key),
+            "runway_configured": bool(cls._runway_key)
+        }
     
     @classmethod
     def get_image_backend(cls):
-        """Get image backend for current provider"""
+        """Get image backend for current image provider"""
         if cls._image_backend is None:
-            if cls._provider == "google":
-                cls._image_backend = GeminiImageBackend()
+            if cls._image_provider == "google":
+                cls._image_backend = GeminiImageBackend(api_key=cls._google_key)
             else:
                 from .replicate_backend import ReplicateImageBackend
-                cls._image_backend = ReplicateImageBackend()
+                cls._image_backend = ReplicateImageBackend(api_key=cls._replicate_key)
         return cls._image_backend
     
     @classmethod
     def get_video_backend(cls):
-        """Get video backend for current provider"""
+        """Get video backend for current video provider"""
         if cls._video_backend is None:
-            if cls._provider == "google":
-                cls._video_backend = VeoVideoBackend()
+            if cls._video_provider == "google":
+                cls._video_backend = VeoVideoBackend(api_key=cls._google_key)
+            elif cls._video_provider == "runway":
+                from .runway_backend import RunwayVideoBackend
+                cls._video_backend = RunwayVideoBackend(api_key=cls._runway_key)
             else:
                 from .replicate_backend import ReplicateVideoBackend
-                cls._video_backend = ReplicateVideoBackend()
+                cls._video_backend = ReplicateVideoBackend(api_key=cls._replicate_key)
         return cls._video_backend
-
