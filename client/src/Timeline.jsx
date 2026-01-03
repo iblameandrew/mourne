@@ -232,16 +232,31 @@ const Timeline = () => {
                 )}
             </div>
 
-            {/* Bottom Control Bar */}
-            <div className="h-14 border-t border-white/5 bg-black/20 flex items-center px-6 gap-4 relative z-10">
-                <div className="h-9 w-9 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 cursor-pointer transition-colors">
-                    <Play size={14} className="fill-white text-white ml-0.5" />
+            {/* Final Video Display (Only when complete) */}
+            {activeJob?.status === 'complete' && (
+                <div className="p-4 border-t border-white/5 bg-black/40 animate-fadeIn relative z-10">
+                    <div className="flex items-center justify-between mb-3 px-2">
+                        <div className="flex items-center gap-2">
+                            <Film size={14} className="text-primary" />
+                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Master Assembly Complete</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-600">final_render.mp4</span>
+                    </div>
+                    <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 shadow-2xl group/video">
+                        <video
+                            controls
+                            className="w-full h-full object-contain"
+                            poster={activeJob.artifacts[0]?.thumbnailUrl}
+                        >
+                            <source src={`/media/final_${activeJob.id.split('-')[1]}.mp4`} type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+
+                        {/* Overlay Gradient */}
+                        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 to-transparent" />
+                    </div>
                 </div>
-                <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full w-0 bg-primary shadow-[0_0_10px_2px_rgba(124,77,255,0.5)]" />
-                </div>
-                <span className="font-mono text-xs text-zinc-600">00:00 / 00:00</span>
-            </div>
+            )}
         </section>
     );
 };
