@@ -6,6 +6,21 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 
 
+class StyleReference(BaseModel):
+    """Extracted style descriptors from a reference image"""
+    artistic_style: str = Field(default="photorealistic", description="e.g., photorealistic, anime, oil painting")
+    rendering_technique: str = Field(default="cinematic", description="e.g., cel-shaded, hyperrealistic")
+    color_palette: str = Field(default="natural colors", description="Dominant colors and harmony")
+    lighting_style: str = Field(default="natural lighting", description="e.g., golden hour, neon, chiaroscuro")
+    texture_quality: str = Field(default="detailed", description="e.g., smooth, grainy, painterly")
+    mood: str = Field(default="neutral", description="Emotional tone")
+    atmosphere: str = Field(default="clear", description="e.g., foggy, crisp, dreamlike")
+    composition_notes: str = Field(default="balanced", description="Notable composition techniques")
+    detail_level: str = Field(default="moderate detail", description="e.g., highly detailed, minimalist")
+    style_prompt: str = Field(default="", description="Concise style directive to inject into prompts")
+    source_image_path: Optional[str] = None
+
+
 class MediaType(str, Enum):
     """Type of media asset"""
     IMAGE = "image"
@@ -162,6 +177,7 @@ class VideoProject(BaseModel):
     song_path: str
     song_duration: Optional[float] = Field(default=None, description="Duration of the audio track in seconds")
     audio_analysis: Optional[str] = None
+    style_reference: Optional[StyleReference] = Field(default=None, description="Visual style from reference image")
     plan: Optional[MasterPlan] = None
     assets: List[MediaAsset] = Field(default_factory=list)
     processing_script: Optional[str] = None

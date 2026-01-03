@@ -241,9 +241,14 @@ class Orchestrator:
                 on_progress(scene_num, total, asset)
         
         try:
+            # Set style reference if project has one
+            if project.style_reference:
+                self.coordinator.set_style_reference(project.style_reference)
+            
             assets = await self.coordinator.generate_all(
                 scenes=project.plan.scenes,
-                on_progress=progress_wrapper
+                on_progress=progress_wrapper,
+                style_reference=project.style_reference
             )
             
             project.assets = assets

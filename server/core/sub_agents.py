@@ -13,7 +13,8 @@ from .models import (
     StitchingCard, 
     MediaType,
     TransitionType,
-    KenBurnsDirection
+    KenBurnsDirection,
+    StyleReference
 )
 
 
@@ -33,7 +34,7 @@ Refine this draft prompt into a production-quality prompt optimized for {media_t
 - Mood: {mood}
 - Audio Context: {audio_context}
 - Duration: {duration} seconds
-
+{style_section}
 **Guidelines for {media_type} prompts:**
 
 For IMAGES:
@@ -56,6 +57,7 @@ For VIDEOS:
 - Include technical cinematography terms
 - Match the mood precisely
 - The prompt should evoke a single, clear visual
+- If a style reference is provided, STRICTLY adhere to that visual style
 
 Return ONLY the refined prompt text. No explanation, no quotes, just the prompt.
 """
@@ -66,24 +68,50 @@ class PromptRefinerAgent:
     
     def __init__(self, llm: Optional[OpenRouterLLM] = None):
         self.llm = llm or get_creative_llm()
+        self.style_reference: Optional[StyleReference] = None
     
-    async def refine(self, scene: SceneStep) -> str:
+    def set_style_reference(self, style_ref: Optional[StyleReference]):
+        """Set the style reference for all subsequent prompts"""
+        self.style_reference = style_ref
+    
+    async def refine(self, scene: SceneStep, style_reference: Optional[StyleReference] = None) -> str:
         """
         Refine a scene's draft prompt into a production-quality prompt.
         
         Args:
             scene: The scene step with draft prompt
+            style_reference: Optional style reference to inject (overrides instance style)
         
         Returns:
             Refined prompt string
         """
+        # Use provided style or fall back to instance style
+        style_ref = style_reference or self.style_reference
+        
+        # Build style section if we have a reference
+        style_section = ""
+        if style_ref and style_ref.style_prompt:
+            style_section = f"""
+**STYLE REFERENCE (MANDATORY):**
+- Artistic Style: {style_ref.artistic_style}
+- Rendering: {style_ref.rendering_technique}
+- Color Palette: {style_ref.color_palette}
+- Lighting: {style_ref.lighting_style}
+- Texture: {style_ref.texture_quality}
+- Atmosphere: {style_ref.atmosphere}
+- Style Directive: {style_ref.style_prompt}
+
+YOU MUST incorporate this visual style into the refined prompt.
+"""
+        
         prompt = PROMPT_REFINER_TEMPLATE.format(
             media_type=scene.suggested_media_type.value.upper(),
             draft_prompt=scene.visual_prompt_draft,
             description=scene.description,
             mood=scene.mood,
             audio_context=scene.audio_context,
-            duration=scene.duration
+            duration=scene.duration,
+            style_section=style_section
         )
         
         refined = await self.llm.generate(
@@ -432,14 +460,25 @@ class MediaGenerationCoordinator:
         self.image_agent = image_agent or ImageGeneratorAgent(output_dir)
         self.video_agent = video_agent or VideoGeneratorAgent(output_dir)
         self.i2v_agent = i2v_agent or ImageToVideoAgent(output_dir)
+        self.style_reference: Optional[StyleReference] = None
+    
+    def set_style_reference(self, style_ref: Optional[StyleReference]):
+        """Set the style reference for all agents"""
+        self.style_reference = style_ref
+        # Propagate to all agents' prompt refiners
+        self.image_agent.prompt_refiner.set_style_reference(style_ref)
+        self.video_agent.prompt_refiner.set_style_reference(style_ref)
+        self.i2v_agent.prompt_refiner.set_style_reference(style_ref)
     
     async def generate_all(
         self, 
         scenes: List[SceneStep],
-        on_progress: Optional[callable] = None
+        on_progress: Optional[callable] = None,
+        style_reference: Optional[StyleReference] = None
     ) -> List[MediaAsset]:
         """
         Generate media for all scenes in a plan.
+
         
         Args:
             scenes: List of scene steps to generate

@@ -14,8 +14,9 @@ from pydantic import BaseModel
 
 from core.orchestrator import Orchestrator
 from core.director import Director
-from core.models import MasterPlan, VideoProject, GenerationStatus, MediaAsset
+from core.models import MasterPlan, VideoProject, GenerationStatus, MediaAsset, StyleReference
 from core.media_backends import MediaBackendManager
+from core.style_analyzer import StyleAnalyzer
 
 
 # Initialize FastAPI app
@@ -28,11 +29,14 @@ app = FastAPI(
 # Initialize core components
 orchestrator = Orchestrator(output_dir="generated_media")
 director = Director()
+style_analyzer = StyleAnalyzer()
 
 # Ensure directories exist
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("generated_media", exist_ok=True)
 os.makedirs("scripts", exist_ok=True)
+os.makedirs("style_references", exist_ok=True)
+
 
 
 # ============================================================================
@@ -213,7 +217,89 @@ async def get_project(project_id: str):
         "status": project.status,
         "has_plan": project.plan is not None,
         "asset_count": len(project.assets),
-        "has_script": project.processing_script is not None
+        "has_script": project.processing_script is not None,
+        "has_style_reference": project.style_reference is not None
+    }
+
+
+@app.post("/api/project/{project_id}/style-reference")
+async def upload_style_reference(project_id: str, file: UploadFile = File(...)):
+    """
+    Upload a reference image to analyze and extract visual style.
+    The extracted style will be injected into all media generation prompts.
+    """
+    project = orchestrator.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_types)}"
+        )
+    
+    # Save the file
+    file_ext = os.path.splitext(file.filename)[1] or ".jpg"
+    save_path = os.path.join("style_references", f"{project_id}_style{file_ext}")
+    
+    with open(save_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+    
+    try:
+        # Analyze the image
+        style_ref = await style_analyzer.analyze(save_path)
+        
+        # Store in project (we need to update the project object)
+        # Convert to models.StyleReference
+        from core.models import StyleReference as ModelStyleReference
+        project.style_reference = ModelStyleReference(
+            artistic_style=style_ref.artistic_style,
+            rendering_technique=style_ref.rendering_technique,
+            color_palette=style_ref.color_palette,
+            lighting_style=style_ref.lighting_style,
+            texture_quality=style_ref.texture_quality,
+            mood=style_ref.mood,
+            atmosphere=style_ref.atmosphere,
+            composition_notes=style_ref.composition_notes,
+            detail_level=style_ref.detail_level,
+            style_prompt=style_ref.style_prompt,
+            source_image_path=save_path
+        )
+        
+        return {
+            "message": "Style reference analyzed successfully",
+            "style": {
+                "artistic_style": style_ref.artistic_style,
+                "rendering_technique": style_ref.rendering_technique,
+                "color_palette": style_ref.color_palette,
+                "lighting_style": style_ref.lighting_style,
+                "mood": style_ref.mood,
+                "atmosphere": style_ref.atmosphere,
+                "style_prompt": style_ref.style_prompt
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Style analysis failed: {str(e)}")
+
+
+@app.get("/api/project/{project_id}/style-reference")
+async def get_style_reference(project_id: str):
+    """
+    Get the current style reference for a project.
+    """
+    project = orchestrator.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    if not project.style_reference:
+        return {"has_style": False, "style": None}
+    
+    return {
+        "has_style": True,
+        "style": project.style_reference.model_dump()
     }
 
 

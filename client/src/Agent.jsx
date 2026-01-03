@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Scroll, Plus, X } from 'lucide-react';
+import { Send, Scroll, Plus, X, Image as ImageIcon } from 'lucide-react';
 import FluxEye from './FluxEye';
 
 const Agent = () => {
@@ -100,6 +100,37 @@ const Agent = () => {
                             title="Attach Audio"
                         >
                             <Plus size={18} />
+                        </button>
+                        <input
+                            type="file"
+                            id="styleImageInput"
+                            onChange={async (e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    setMessages(prev => [...prev, {
+                                        sender: 'User',
+                                        text: `Style Reference: ${file.name}`
+                                    }]);
+                                    setIsThinking(true);
+                                    // TODO: Upload to /api/project/{id}/style-reference
+                                    setTimeout(() => {
+                                        setMessages(prev => [...prev, {
+                                            sender: 'Agent',
+                                            text: 'Style reference analyzed. Visual style will be applied to all generated media.'
+                                        }]);
+                                        setIsThinking(false);
+                                    }, 1200);
+                                }
+                            }}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => document.getElementById('styleImageInput')?.click()}
+                            className="h-9 w-9 flex items-center justify-center rounded-full text-zinc-400 hover:bg-white/10 hover:text-white transition-all"
+                            title="Add Style Reference"
+                        >
+                            <ImageIcon size={16} />
                         </button>
                         <button
                             onClick={() => setScriptModalOpen(true)}
