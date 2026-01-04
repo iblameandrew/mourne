@@ -22,6 +22,7 @@ You understand how to use transitions, zooms, and timing to create world-class t
 
 DIRECTOR_PROMPT_TEMPLATE = """
 Generate a complete, runnable Python script using MoviePy to assemble a cinematic music video.
+You are a highly advanced visual engineer. If MoviePy lacks a built-in effect, you MUST implement it from scratch using `numpy`, `cv2` (OpenCV), or `scipy`.
 
 **Project: {project_name}**
 **Audio Track:** {song_path}
@@ -30,65 +31,61 @@ Generate a complete, runnable Python script using MoviePy to assemble a cinemati
 **User's Narrative Vision:**
 {user_script}
 
-The above is the user's original creative concept and narrative flow. Use this as your PRIMARY GUIDE for:
-- How scenes should transition emotionally
-- The overall story arc and pacing
-- Key moments that should feel climactic vs intimate
-- The desired tone, mood, and atmosphere throughout
-
 **Assets and Stitching Cards:**
 {assets_description}
 
-**CRITICAL: Audio-Visual Synchronization Guidelines**
+**CINEMATIC EFFECTS LIBRARY:**
+You have access to these concepts. Implement them creatively:
 
-You are crafting a music video that CLICKS with the song. Apply these techniques:
+**1. Transitions (Motion & Optical):**
+- *Standard:* Crossfade, Fade In/Out, Dip to Color (White/Black)
+- *Motion:* Whip Pan (Fast directional blur), Slide, Push, Zoom-Through
+- *Optical:* Luma Fade (Fade based on brightness), Glitch Transition (Digital artifacts), Flash Cut (Strobe)
+- *Experimental:* Datamosh (Pixel bleeding), Slit-Scan (Time displacement), Pixel Sort (Sorting pixels by luminance)
+- *Classic:* Match Cut (Visual similarity), Invisible Cut (Masking)
 
-1. **Beat Awareness:**
-   - Match hard cuts to beat drops or percussion hits
-   - Use crossfades for melodic, flowing sections
-   - Sync zoom transitions with energy changes
+**2. Color Grading & Look Development:**
+- *Techniques:* Bleach Bypass (High contrast, low saturation), Teal & Orange (Simulated split-toning), Cross-Processing (Shifted channels)
+- *Atmosphere:* Day-for-Night (Blue tin, lower exp), Golden Hour (Warm gentle glow), Cyberpunk (Neon purples/greens)
+- *Film Emulation:* 35mm Grain (Add noise), Halation (Glow on highlights), Gate Weave (Subtle camera shake)
 
-2. **Transition Strategy by Mood:**
-   - EPIC/TRIUMPHANT: Zoom out reveals, whip pans
-   - INTIMATE/EMOTIONAL: Slow crossfades (1-2s), soft zoom ins
-   - ENERGETIC/UPBEAT: Quick cuts (0.2-0.3s), flash transitions
-   - DREAMY/ETHEREAL: Long dissolves, soft glow overlays
-   - DARK/MYSTERIOUS: Fade to black, reveal with zoom
+**3. Visual FX (Compositing/Generative):**
+- *Lens:* Chromatic Aberration (RGB channel shift), Vignetting (Dark corners), Lens Flare (Simulated overlays), Bokeh (Blur with mask)
+- *Distortion:* VHS Tapes (Scanlines + noise), Heat Haze (Warping), Underwater (Sine wave distortion)
+- *Lighting:* Volumetric Light Rays (Radial blur from highlights), Strobe/Flicker (Rhythmic opacity)
 
-3. **Ken Burns Dynamics:**
-   - Slow zoom (3-5%): Contemplative scenes
-   - Medium zoom (5-10%): Standard engagement
-   - Fast zoom (10-15%): Climactic moments
-   - Pan speed should match tempo
+**DIRECTOR'S ALGORITHM:**
 
-4. **Color Grading by Mood:**
-   - warm_orange: Increase warmth, slight orange tint
-   - cool_blue: Desaturate, add blue overlay
-   - desaturated_dark: Lower brightness, reduce saturation
-   - saturated_vivid: Boost saturation, increase contrast
-   - soft_pastel: Light, airy, slightly overexposed
+**A. Audio Analysis & Synchronization:**
+- Sync hard cuts to Transients/Beats.
+- Sync flowy transitions (dissolves) to Sustained Notes/Pads.
+- Match "energy" of the visual effect to the audio amplitude.
 
-5. **Transition Timing:**
-   - Default crossfade: {transition_duration}s
-   - For energetic scenes: 0.2-0.4s
-   - For emotional scenes: 0.8-1.5s
+**B. Scene Construction logic:**
+1. **Asset Loading:** Load image/video.
+2. **Pre-processing:** Resize to 1920x1080.
+3. **Motion Design:** Apply Ken Burns (Pan/Zoom) for static images.
+4. **Effect Layering:** Apply 1-3 visual effects from the library above based on the `mood`.
+5. **Color Grading:** Apply the requested look.
+6. **Transition-Out:** Prepare the clip for the next scene.
 
-6. **Voice Overlay Guidelines:**
-   - Load voice audio clips at their specified time_start
-   - Apply reverb/echo for INNER_THOUGHT voice types
-   - Calibrate voice volume based on music intensity (duck music during voiceover)
-   - Match voice audio effects to the mood (warm EQ for intimate scenes, etc.)
-   - Some scenes have NO voice - respect the silence
-
-**Script Requirements:**
-1. Use `moviepy.editor` for all video operations
-2. Load each asset at its specified time_start
-3. Apply Ken Burns effect to images with the specified direction
-4. Apply color adjustments based on color_grade_hint
-5. Sync transitions with audio (use the audio_cue text to inform timing)
-6. Handle resolution mismatches (1920x1080 target)
-7. Include progress printing for long renders
-8. MUST be executable with `python script.py`
+**C. Raw Implementation Guidelines:**
+- **IF** a transition or effect exists in `moviepy.video.fx.all`, USE IT.
+- **ELSE**, implement a custom FX function using `fl_image` or `make_frame`.
+    - Example: Manual Chromatic Aberration in NumPy:
+      ```python
+      def chromatic_aberration(im, shift=2):
+          r = np.roll(im[:,:,0], shift, axis=1)
+          g = im[:,:,1]
+          b = np.roll(im[:,:,2], -shift, axis=1)
+          return np.stack([r,g,b], axis=2)
+      ```
+    - Example: Manual Flash:
+      ```python
+      def flash_effect(im, t):
+          intensity = np.sin(t * 50) ** 2
+          return np.clip(im * (1 + intensity), 0, 255)
+      ```
 
 **Output Structure:**
 ```python
@@ -100,15 +97,20 @@ Project: {project_name}
 from moviepy.editor import *
 import moviepy.video.fx.all as vfx
 import numpy as np
+import cv2  # For advanced raw effects
 import os
 
 # [Configuration section]
-# [Helper functions: create_ken_burns, apply_color_grade, etc.]
+# [Custom FX Library - Implement raw numpy/cv2 functions here]
 # [Main assembly function]
-# [Execution with progress]
+# [Execution]
 ```
 
-Return ONLY the Python code. No markdown, no explanations, just the complete script.
+**Requirements:**
+1. **Code Only:** Return ONLY the Python code.
+2. **Robustness:** Handle potential errors (missing files).
+3. **Length:** Ensure the video matches the audio duration EXACTLY.
+4. **Complexity:** Do NOT be lazy. Use complex, raw effects if the mood calls for it.
 """
 
 
